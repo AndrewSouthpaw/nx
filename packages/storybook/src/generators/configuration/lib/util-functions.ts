@@ -26,6 +26,7 @@ import {
 import { StorybookConfigureSchema } from '../schema';
 import { UiFramework } from '../../../utils/models';
 import { nxVersion } from '../../../utils/versions';
+import { storybookVitestConfigFileName } from '../../../utils/story-testing';
 import { findEslintFile, useFlatConfig } from '@nx/eslint/internal';
 import { findTargetDefault, upsertTargetDefault } from '@nx/devkit/internal';
 import {
@@ -40,7 +41,7 @@ export function addStorybookTarget(
   tree: Tree,
   projectName: string,
   uiFramework: UiFramework,
-  interactionTests: boolean
+  storyTestRunner: 'vitest' | 'test-runner' | 'none'
 ) {
   const projectConfig = readProjectConfiguration(tree, projectName);
   projectConfig.targets['storybook'] = {
@@ -70,7 +71,15 @@ export function addStorybookTarget(
     },
   };
 
-  if (interactionTests === true) {
+  if (storyTestRunner === 'vitest') {
+    projectConfig.targets['test-storybook'] = {
+      executor: 'nx:run-commands',
+      options: {
+        command: `vitest run --config=${storybookVitestConfigFileName}`,
+        cwd: projectConfig.root,
+      },
+    };
+  } else if (storyTestRunner === 'test-runner') {
     projectConfig.targets['test-storybook'] = {
       executor: 'nx:run-commands',
       options: {
@@ -572,7 +581,7 @@ export function createProjectStorybookDir(
   root: string,
   projectType: string,
   projectIsRootProjectInStandaloneWorkspace: boolean,
-  interactionTests: boolean,
+  useVitestAddon: boolean,
   mainDir?: string,
   isNextJs?: boolean,
   usesSwc?: boolean,
@@ -613,13 +622,20 @@ export function createProjectStorybookDir(
     `../files/v${storybookMajor}/project-files${tsConfiguration ? '-ts' : ''}`
   );
 
+  const addons = [
+    ...(uiFramework === '@storybook/react-webpack5'
+      ? ['@nx/react/plugins/storybook']
+      : []),
+    ...(useVitestAddon ? ['@storybook/addon-vitest'] : []),
+  ];
+
   generateFiles(tree, templatePath, root, {
     tmpl: '',
     uiFramework,
     offsetFromRoot: offsetFromRoot(root),
     projectDirectory,
     projectType,
-    interactionTests,
+    addons,
     mainDir,
     isNextJs:
       isNextJs &&
@@ -647,6 +663,28 @@ export function createProjectStorybookDir(
     // for Angular projects
     tree.delete(join(root, '.storybook/tsconfig.json'));
   }
+}
+
+export function createStorybookVitestConfig(
+  tree: Tree,
+  projectName: string,
+  uiFramework: UiFramework,
+  root: string,
+  vitestMajor: number
+) {
+  if (tree.exists(join(root, storybookVitestConfigFileName))) {
+    logger.warn(
+      `${storybookVitestConfigFileName} already exists for ${projectName}!`
+    );
+    return;
+  }
+
+  generateFiles(tree, join(__dirname, '../files/vitest-addon'), root, {
+    tmpl: '',
+    uiFramework,
+    projectName,
+    vitestMajor,
+  });
 }
 
 export function getTsConfigPath(

@@ -12,7 +12,7 @@ import react from '@vitejs/plugin-react';
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [],
+  addons: ['@storybook/addon-vitest'],
   framework: {
     name: getAbsolutePath('@storybook/react-vite'),
     options: {},
@@ -83,7 +83,7 @@ import type { StorybookConfig } from '@storybook/react-webpack5';
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: getAbsolutePath('@storybook/react-webpack5'),
     options: {},

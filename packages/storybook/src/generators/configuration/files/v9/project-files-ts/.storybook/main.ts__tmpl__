@@ -10,7 +10,7 @@ const config: StorybookConfig = {
     '../**/*.@(mdx|stories.@(js|jsx|ts|tsx))' <% } else { %>
     '../<%= projectDirectory %>/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'
   <% } %>],
-  addons: [<% if(uiFramework === '@storybook/react-webpack5') { %>, '@nx/react/plugins/storybook' <% } %>],
+  addons: [<%- addons.map((addon) => "'" + addon + "'").join(', ') %>],
   framework: {
     name: '<%= uiFramework %>',
     options: {

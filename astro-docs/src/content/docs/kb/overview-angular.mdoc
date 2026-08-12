@@ -118,8 +118,7 @@ The [`@nx/angular:storybook-configuration` generator](/docs/technologies/angular
 // libs/feature/ui/src/lib/my-button/my-button.stories.ts
 import type { Meta, StoryObj } from '@storybook/angular';
 import { MyButton } from './my-button';
-import { within } from '@storybook/testing-library';
-import { expect } from '@storybook/jest';
+import { expect, within } from 'storybook/test';
 
 const meta: Meta<MyButton> = {
   component: MyButton,

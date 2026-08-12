@@ -333,6 +333,51 @@ describe('@nx/storybook/plugin', () => {
     `);
   });
 
+  it('should infer test-storybook from a storybook vitest config', async () => {
+    tempFs.createFileSync('my-app/.storybook/main.ts', '');
+    tempFs.createFileSync('my-app/vitest.storybook.config.mts', '');
+    mockStorybookMainConfig('my-app/.storybook/main.ts', {
+      stories: ['../src/app/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+      addons: ['@storybook/addon-vitest'],
+      framework: {
+        name: '@storybook/react-vite',
+        options: {},
+      },
+    });
+
+    const nodes = await createNodesFunction(
+      ['my-app/.storybook/main.ts'],
+      {
+        buildStorybookTargetName: 'build-storybook',
+        staticStorybookTargetName: 'static-storybook',
+        serveStorybookTargetName: 'serve-storybook',
+        testStorybookTargetName: 'test-storybook',
+        buildDepsTargetName: 'build-deps',
+        watchDepsTargetName: 'watch-deps',
+      },
+      context
+    );
+
+    expect(nodes[0][1].projects['my-app'].targets['test-storybook'])
+      .toMatchInlineSnapshot(`
+      {
+        "command": "vitest run --config=vitest.storybook.config.mts",
+        "inputs": [
+          {
+            "externalDependencies": [
+              "storybook",
+              "@storybook/addon-vitest",
+              "vitest",
+            ],
+          },
+        ],
+        "options": {
+          "cwd": "my-app",
+        },
+      }
+    `);
+  });
+
   function mockStorybookMainConfig(
     mainTsPath: string,
     mainTsConfig: StorybookConfig

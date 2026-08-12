@@ -414,6 +414,149 @@ describe('@nx/storybook:configuration', () => {
         ).toBeDefined();
       });
     });
+    describe('story testing', () => {
+      let tree: Tree;
+
+      beforeEach(async () => {
+        tree = createTreeWithEmptyWorkspace({ layout: 'apps-libs' });
+        await libraryGenerator(tree, {
+          directory: 'test-ui-lib',
+          bundler: 'none',
+          skipFormat: true,
+          addPlugin: true,
+        });
+        updateJson(tree, 'package.json', (json) => {
+          json.devDependencies ??= {};
+          json.devDependencies['storybook'] = storybookVersion;
+          return json;
+        });
+      });
+
+      it('should configure the vitest addon for vite frameworks', async () => {
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-vite',
+          addPlugin: true,
+        });
+
+        expect(tree.read('test-ui-lib/vitest.storybook.config.mts', 'utf-8'))
+          .toMatchInlineSnapshot(`
+          "import { join } from 'node:path';
+          import { defineConfig } from 'vitest/config';
+          import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
+          import { playwright } from '@vitest/browser-playwright';
+
+          // Runs this project's stories as tests. Kept out of vite.config/vitest.config so
+          // the browser-mode story run stays separate from the project's unit tests.
+          export default defineConfig({
+            plugins: [
+              storybookTest({ configDir: join(import.meta.dirname, '.storybook') }),
+            ],
+            test: {
+              name: 'test-ui-lib-storybook',
+              browser: {
+                enabled: true,
+                headless: true,
+                provider: playwright(),
+                instances: [{ browser: 'chromium' }],
+              },
+              setupFiles: ['.storybook/vitest.setup.ts'],
+            },
+          });
+          "
+        `);
+        expect(tree.read('test-ui-lib/.storybook/vitest.setup.ts', 'utf-8'))
+          .toMatchInlineSnapshot(`
+          "import { beforeAll } from 'vitest';
+          import { setProjectAnnotations } from '@storybook/react-vite';
+          import * as projectAnnotations from './preview';
+
+          const project = setProjectAnnotations([projectAnnotations]);
+
+          beforeAll(project.beforeAll);
+          "
+        `);
+        expect(tree.read('test-ui-lib/.storybook/main.ts', 'utf-8')).toContain(
+          `addons: ['@storybook/addon-vitest']`
+        );
+
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@storybook/addon-vitest']).toBeDefined();
+        expect(devDependencies['@vitest/browser']).toBeDefined();
+        expect(devDependencies['@vitest/browser-playwright']).toBeDefined();
+        expect(devDependencies['vitest']).toBeDefined();
+        expect(devDependencies['playwright']).toBeDefined();
+        expect(devDependencies['@storybook/test-runner']).not.toBeDefined();
+      });
+
+      it('should keep the playwright provider a string on vitest 3', async () => {
+        updateJson(tree, 'package.json', (json) => {
+          json.devDependencies['vitest'] = '^3.2.0';
+          return json;
+        });
+
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-vite',
+          addPlugin: true,
+        });
+
+        expect(
+          tree.read('test-ui-lib/vitest.storybook.config.mts', 'utf-8')
+        ).toContain(`provider: 'playwright'`);
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@vitest/browser']).toBe('^3.0.0');
+        expect(devDependencies['@vitest/browser-playwright']).not.toBeDefined();
+      });
+
+      it('should install the test runner for non-vite frameworks', async () => {
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-webpack5',
+          addPlugin: true,
+        });
+
+        expect(tree.exists('test-ui-lib/vitest.storybook.config.mts')).toBe(
+          false
+        );
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@storybook/test-runner']).toBe('^0.24.0');
+        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
+      });
+
+      it('should not configure any runner when interactionTests is false', async () => {
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-vite',
+          interactionTests: false,
+          addPlugin: true,
+        });
+
+        expect(tree.exists('test-ui-lib/vitest.storybook.config.mts')).toBe(
+          false
+        );
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
+        expect(devDependencies['@storybook/test-runner']).not.toBeDefined();
+      });
+
+      it('should point an explicit test-storybook target at the vitest config', async () => {
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-vite',
+          addPlugin: false,
+        });
+
+        const project = readJson(tree, 'test-ui-lib/project.json');
+        expect(project.targets['test-storybook'].options)
+          .toMatchInlineSnapshot(`
+          {
+            "command": "vitest run --config=vitest.storybook.config.mts",
+            "cwd": "test-ui-lib",
+          }
+        `);
+      });
+    });
 
     describe('basic functionalities', () => {
       let tree: Tree;
@@ -481,18 +624,18 @@ describe('@nx/storybook:configuration', () => {
         );
 
         expect(tsconfigJson.references).toMatchInlineSnapshot(`
-        [
-          {
-            "path": "./tsconfig.lib.json",
-          },
-          {
-            "path": "./tsconfig.spec.json",
-          },
-          {
-            "path": "./tsconfig.storybook.json",
-          },
-        ]
-      `);
+                  [
+                    {
+                      "path": "./tsconfig.lib.json",
+                    },
+                    {
+                      "path": "./tsconfig.spec.json",
+                    },
+                    {
+                      "path": "./tsconfig.storybook.json",
+                    },
+                  ]
+              `);
       });
 
       it("should update the project's .eslintrc.json if config exists", async () => {
@@ -518,12 +661,12 @@ describe('@nx/storybook:configuration', () => {
 
         expect(readJson(tree, 'test-ui-lib2/.eslintrc.json').parserOptions)
           .toMatchInlineSnapshot(`
-        {
-          "project": [
-            "test-ui-lib2/tsconfig.storybook.json",
-          ],
-        }
-      `);
+                  {
+                    "project": [
+                      "test-ui-lib2/tsconfig.storybook.json",
+                    ],
+                  }
+              `);
       });
 
       it('should have the proper typings', async () => {
@@ -898,78 +1041,78 @@ describe('@nx/storybook:configuration', () => {
         });
 
         expect(readJson(tree, 'tsconfig.json')).toMatchInlineSnapshot(`
-        {
-          "extends": "./tsconfig.base.json",
-          "files": [],
-          "references": [
-            {
-              "path": "./mylib",
-            },
-          ],
-          "ts-node": {
-            "compilerOptions": {
-              "module": "commonjs",
-              "moduleResolution": "bundler",
-            },
-          },
-        }
-      `);
+                  {
+                    "extends": "./tsconfig.base.json",
+                    "files": [],
+                    "references": [
+                      {
+                        "path": "./mylib",
+                      },
+                    ],
+                    "ts-node": {
+                      "compilerOptions": {
+                        "module": "commonjs",
+                        "moduleResolution": "bundler",
+                      },
+                    },
+                  }
+              `);
         expect(readJson(tree, 'mylib/tsconfig.json')).toMatchInlineSnapshot(`
-        {
-          "extends": "../tsconfig.base.json",
-          "files": [],
-          "include": [],
-          "references": [
-            {
-              "path": "./tsconfig.lib.json",
-            },
-            {
-              "path": "./tsconfig.storybook.json",
-            },
-          ],
-        }
-      `);
+                  {
+                    "extends": "../tsconfig.base.json",
+                    "files": [],
+                    "include": [],
+                    "references": [
+                      {
+                        "path": "./tsconfig.lib.json",
+                      },
+                      {
+                        "path": "./tsconfig.storybook.json",
+                      },
+                    ],
+                  }
+              `);
         expect(readJson(tree, 'mylib/tsconfig.storybook.json'))
           .toMatchInlineSnapshot(`
-        {
-          "compilerOptions": {
-            "jsx": "preserve",
-            "module": "esnext",
-            "moduleResolution": "bundler",
-            "outDir": "out-tsc/storybook",
-          },
-          "exclude": [
-            "src/**/*.spec.ts",
-            "src/**/*.test.ts",
-            "src/**/*.spec.js",
-            "src/**/*.test.js",
-            "src/**/*.spec.tsx",
-            "src/**/*.test.tsx",
-            "src/**/*.spec.jsx",
-            "src/**/*.test.js",
-          ],
-          "extends": "../tsconfig.base.json",
-          "files": [
-            "../node_modules/@nx/react/typings/styled-jsx.d.ts",
-            "../node_modules/@nx/react/typings/cssmodule.d.ts",
-            "../node_modules/@nx/react/typings/image.d.ts",
-          ],
-          "include": [
-            "src/**/*.stories.ts",
-            "src/**/*.stories.js",
-            "src/**/*.stories.jsx",
-            "src/**/*.stories.tsx",
-            "src/**/*.stories.mdx",
-            ".storybook/*.js",
-            ".storybook/*.ts",
-          ],
-          "references": [
-            {
-              "path": "./tsconfig.lib.json",
-            },
-          ],
-        }
-      `);
+                  {
+                    "compilerOptions": {
+                      "jsx": "preserve",
+                      "module": "esnext",
+                      "moduleResolution": "bundler",
+                      "outDir": "out-tsc/storybook",
+                    },
+                    "exclude": [
+                      "src/**/*.spec.ts",
+                      "src/**/*.test.ts",
+                      "src/**/*.spec.js",
+                      "src/**/*.test.js",
+                      "src/**/*.spec.tsx",
+                      "src/**/*.test.tsx",
+                      "src/**/*.spec.jsx",
+                      "src/**/*.test.js",
+                    ],
+                    "extends": "../tsconfig.base.json",
+                    "files": [
+                      "../node_modules/@nx/react/typings/styled-jsx.d.ts",
+                      "../node_modules/@nx/react/typings/cssmodule.d.ts",
+                      "../node_modules/@nx/react/typings/image.d.ts",
+                    ],
+                    "include": [
+                      "src/**/*.stories.ts",
+                      "src/**/*.stories.js",
+                      "src/**/*.stories.jsx",
+                      "src/**/*.stories.tsx",
+                      "src/**/*.stories.mdx",
+                      ".storybook/*.js",
+                      ".storybook/*.ts",
+                    ],
+                    "references": [
+                      {
+                        "path": "./tsconfig.lib.json",
+                      },
+                    ],
+                  }
+              `);
       });
     });
   });
@@ -1339,6 +1482,36 @@ describe('@nx/storybook:configuration', () => {
       });
     });
 
+    describe('story testing', () => {
+      it('should keep the test runner on storybook 9', async () => {
+        const tree = createTreeWithEmptyWorkspace({ layout: 'apps-libs' });
+        await libraryGenerator(tree, {
+          directory: 'test-ui-lib',
+          bundler: 'none',
+          skipFormat: true,
+          addPlugin: true,
+        });
+        updateJson(tree, 'package.json', (json) => {
+          json.devDependencies ??= {};
+          json.devDependencies['storybook'] = '9.1.15';
+          return json;
+        });
+
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-vite',
+          addPlugin: true,
+        });
+
+        expect(tree.exists('test-ui-lib/vitest.storybook.config.mts')).toBe(
+          false
+        );
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@storybook/test-runner']).toBe('^0.23.0');
+        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
+      });
+    });
+
     describe('basic functionalities', () => {
       let tree: Tree;
 
@@ -1405,18 +1578,18 @@ describe('@nx/storybook:configuration', () => {
         );
 
         expect(tsconfigJson.references).toMatchInlineSnapshot(`
-        [
-          {
-            "path": "./tsconfig.lib.json",
-          },
-          {
-            "path": "./tsconfig.spec.json",
-          },
-          {
-            "path": "./tsconfig.storybook.json",
-          },
-        ]
-      `);
+                  [
+                    {
+                      "path": "./tsconfig.lib.json",
+                    },
+                    {
+                      "path": "./tsconfig.spec.json",
+                    },
+                    {
+                      "path": "./tsconfig.storybook.json",
+                    },
+                  ]
+              `);
       });
 
       it("should update the project's .eslintrc.json if config exists", async () => {
@@ -1442,12 +1615,12 @@ describe('@nx/storybook:configuration', () => {
 
         expect(readJson(tree, 'test-ui-lib2/.eslintrc.json').parserOptions)
           .toMatchInlineSnapshot(`
-        {
-          "project": [
-            "test-ui-lib2/tsconfig.storybook.json",
-          ],
-        }
-      `);
+                  {
+                    "project": [
+                      "test-ui-lib2/tsconfig.storybook.json",
+                    ],
+                  }
+              `);
       });
 
       it('should have the proper typings', async () => {
@@ -1764,78 +1937,78 @@ describe('@nx/storybook:configuration', () => {
         });
 
         expect(readJson(tree, 'tsconfig.json')).toMatchInlineSnapshot(`
-        {
-          "extends": "./tsconfig.base.json",
-          "files": [],
-          "references": [
-            {
-              "path": "./mylib",
-            },
-          ],
-          "ts-node": {
-            "compilerOptions": {
-              "module": "commonjs",
-              "moduleResolution": "bundler",
-            },
-          },
-        }
-      `);
+                  {
+                    "extends": "./tsconfig.base.json",
+                    "files": [],
+                    "references": [
+                      {
+                        "path": "./mylib",
+                      },
+                    ],
+                    "ts-node": {
+                      "compilerOptions": {
+                        "module": "commonjs",
+                        "moduleResolution": "bundler",
+                      },
+                    },
+                  }
+              `);
         expect(readJson(tree, 'mylib/tsconfig.json')).toMatchInlineSnapshot(`
-        {
-          "extends": "../tsconfig.base.json",
-          "files": [],
-          "include": [],
-          "references": [
-            {
-              "path": "./tsconfig.lib.json",
-            },
-            {
-              "path": "./tsconfig.storybook.json",
-            },
-          ],
-        }
-      `);
+                  {
+                    "extends": "../tsconfig.base.json",
+                    "files": [],
+                    "include": [],
+                    "references": [
+                      {
+                        "path": "./tsconfig.lib.json",
+                      },
+                      {
+                        "path": "./tsconfig.storybook.json",
+                      },
+                    ],
+                  }
+              `);
         expect(readJson(tree, 'mylib/tsconfig.storybook.json'))
           .toMatchInlineSnapshot(`
-        {
-          "compilerOptions": {
-            "jsx": "preserve",
-            "module": "esnext",
-            "moduleResolution": "bundler",
-            "outDir": "out-tsc/storybook",
-          },
-          "exclude": [
-            "src/**/*.spec.ts",
-            "src/**/*.test.ts",
-            "src/**/*.spec.js",
-            "src/**/*.test.js",
-            "src/**/*.spec.tsx",
-            "src/**/*.test.tsx",
-            "src/**/*.spec.jsx",
-            "src/**/*.test.js",
-          ],
-          "extends": "../tsconfig.base.json",
-          "files": [
-            "../node_modules/@nx/react/typings/styled-jsx.d.ts",
-            "../node_modules/@nx/react/typings/cssmodule.d.ts",
-            "../node_modules/@nx/react/typings/image.d.ts",
-          ],
-          "include": [
-            "src/**/*.stories.ts",
-            "src/**/*.stories.js",
-            "src/**/*.stories.jsx",
-            "src/**/*.stories.tsx",
-            "src/**/*.stories.mdx",
-            ".storybook/*.js",
-            ".storybook/*.ts",
-          ],
-          "references": [
-            {
-              "path": "./tsconfig.lib.json",
-            },
-          ],
-        }
-      `);
+                  {
+                    "compilerOptions": {
+                      "jsx": "preserve",
+                      "module": "esnext",
+                      "moduleResolution": "bundler",
+                      "outDir": "out-tsc/storybook",
+                    },
+                    "exclude": [
+                      "src/**/*.spec.ts",
+                      "src/**/*.test.ts",
+                      "src/**/*.spec.js",
+                      "src/**/*.test.js",
+                      "src/**/*.spec.tsx",
+                      "src/**/*.test.tsx",
+                      "src/**/*.spec.jsx",
+                      "src/**/*.test.js",
+                    ],
+                    "extends": "../tsconfig.base.json",
+                    "files": [
+                      "../node_modules/@nx/react/typings/styled-jsx.d.ts",
+                      "../node_modules/@nx/react/typings/cssmodule.d.ts",
+                      "../node_modules/@nx/react/typings/image.d.ts",
+                    ],
+                    "include": [
+                      "src/**/*.stories.ts",
+                      "src/**/*.stories.js",
+                      "src/**/*.stories.jsx",
+                      "src/**/*.stories.tsx",
+                      "src/**/*.stories.mdx",
+                      ".storybook/*.js",
+                      ".storybook/*.ts",
+                    ],
+                    "references": [
+                      {
+                        "path": "./tsconfig.lib.json",
+                      },
+                    ],
+                  }
+              `);
       });
     });
   });

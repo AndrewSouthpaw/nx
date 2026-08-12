@@ -25,6 +25,7 @@ import { getLockFileName } from '@nx/js';
 import type { StorybookConfig } from 'storybook/internal/types';
 import { query } from '@phenomnomnominal/tsquery';
 import { addBuildAndWatchDepsTargets } from '@nx/js/internal';
+import { storybookVitestConfigFileName } from '../utils/story-testing';
 
 export interface StorybookPluginOptions {
   buildStorybookTargetName?: string;
@@ -207,7 +208,14 @@ async function buildStorybookTargets(
     configFilePath
   );
 
-  if (isStorybookTestRunnerInstalled()) {
+  const storybookVitestConfig = join(
+    context.workspaceRoot,
+    projectRoot,
+    storybookVitestConfigFileName
+  );
+  if (existsSync(storybookVitestConfig)) {
+    targets[options.testStorybookTargetName] = vitestTestTarget(projectRoot);
+  } else if (isStorybookTestRunnerInstalled()) {
     targets[options.testStorybookTargetName] = testTarget(projectRoot);
   }
 
@@ -322,6 +330,24 @@ function testTarget(projectRoot: string) {
     inputs: [
       {
         externalDependencies: ['storybook', '@storybook/test-runner'],
+      },
+    ],
+  };
+
+  return targetConfig;
+}
+
+function vitestTestTarget(projectRoot: string) {
+  const targetConfig: TargetConfiguration = {
+    command: `vitest run --config=${storybookVitestConfigFileName}`,
+    options: { cwd: projectRoot },
+    inputs: [
+      {
+        externalDependencies: [
+          'storybook',
+          '@storybook/addon-vitest',
+          'vitest',
+        ],
       },
     ],
   };

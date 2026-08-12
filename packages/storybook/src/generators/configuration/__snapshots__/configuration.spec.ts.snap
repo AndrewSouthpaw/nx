@@ -130,7 +130,7 @@ exports[`@nx/storybook:configuration v9 generate Storybook configuration for all
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: '@storybook/react-webpack5',
     options: {},
@@ -174,7 +174,7 @@ exports[`@nx/storybook:configuration v9 generate Storybook configuration for all
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: '@storybook/react-webpack5',
     options: {},
@@ -220,7 +220,7 @@ exports[`@nx/storybook:configuration v9 generate Storybook configuration for all
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: '@storybook/react-webpack5',
     options: {},
@@ -268,7 +268,7 @@ exports[`@nx/storybook:configuration v9 generate Storybook configuration for all
 
 const config: StorybookConfig = {
   stories: ['../src/lib/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: '@storybook/react-webpack5',
     options: {},
@@ -392,7 +392,7 @@ import { dirname } from 'node:path';
 
 const config = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [],
+  addons: ['@storybook/addon-vitest'],
   framework: {
     name: getAbsolutePath('@storybook/react-vite'),
     options: {
@@ -425,7 +425,7 @@ import type { StorybookConfig } from '@storybook/react-vite';
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [],
+  addons: ['@storybook/addon-vitest'],
   framework: {
     name: getAbsolutePath('@storybook/react-vite'),
     options: {
@@ -458,7 +458,7 @@ import type { StorybookConfig } from '@storybook/react-webpack5';
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: getAbsolutePath('@storybook/react-webpack5'),
     options: {},
@@ -516,7 +516,7 @@ import type { StorybookConfig } from '@storybook/react-webpack5';
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: getAbsolutePath('@storybook/react-webpack5'),
     options: {},
@@ -543,7 +543,7 @@ import { dirname } from 'node:path';
 
 const config = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [],
+  addons: ['@storybook/addon-vitest'],
   framework: {
     name: getAbsolutePath('@storybook/react-vite'),
     options: {
@@ -576,7 +576,7 @@ import type { StorybookConfig } from '@storybook/react-webpack5';
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: getAbsolutePath('@storybook/react-webpack5'),
     options: {},
@@ -605,7 +605,7 @@ import type { StorybookConfig } from '@storybook/web-components-vite';
 
 const config: StorybookConfig = {
   stories: ['../src/app/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [],
+  addons: ['@storybook/addon-vitest'],
   framework: {
     name: getAbsolutePath('@storybook/web-components-vite'),
     options: {
@@ -638,7 +638,7 @@ import type { StorybookConfig } from '@storybook/react-webpack5';
 
 const config: StorybookConfig = {
   stories: ['../src/lib/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [, '@nx/react/plugins/storybook'],
+  addons: ['@nx/react/plugins/storybook'],
   framework: {
     name: getAbsolutePath('@storybook/react-webpack5'),
     options: {},
@@ -667,7 +667,7 @@ import type { StorybookConfig } from '@storybook/react-vite';
 
 const config: StorybookConfig = {
   stories: ['../src/lib/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
-  addons: [],
+  addons: ['@storybook/addon-vitest'],
   framework: {
     name: getAbsolutePath('@storybook/react-vite'),
     options: {
