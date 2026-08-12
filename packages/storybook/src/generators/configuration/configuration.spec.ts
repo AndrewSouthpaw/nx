@@ -433,68 +433,15 @@ describe('@nx/storybook:configuration', () => {
         });
       });
 
-      it('should install the vitest addon for vite frameworks', async () => {
+      it('should install the test runner so the inferred target has a binary', async () => {
         await configurationGenerator(tree, {
           project: 'test-ui-lib',
           uiFramework: '@storybook/react-vite',
-          addPlugin: true,
-        });
-
-        const { devDependencies } = readJson(tree, 'package.json');
-        expect(devDependencies['@storybook/addon-vitest']).toBeDefined();
-        expect(devDependencies['@storybook/test-runner']).not.toBeDefined();
-      });
-
-      it('should install the test runner for non-vite frameworks', async () => {
-        await configurationGenerator(tree, {
-          project: 'test-ui-lib',
-          uiFramework: '@storybook/react-webpack5',
           addPlugin: true,
         });
 
         const { devDependencies } = readJson(tree, 'package.json');
         expect(devDependencies['@storybook/test-runner']).toBe('^0.24.0');
-        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
-      });
-
-      it('should keep the test runner when only the unit tests use vite', async () => {
-        // An Angular library has a vite.config for its unit tests while Storybook
-        // still builds with webpack.
-        tree.write('test-ui-lib/vite.config.mts', 'export default {};');
-
-        await configurationGenerator(tree, {
-          project: 'test-ui-lib',
-          uiFramework: '@storybook/angular',
-          addPlugin: false,
-          addExplicitTargets: true,
-        });
-
-        const { devDependencies } = readJson(tree, 'package.json');
-        expect(devDependencies['@storybook/test-runner']).toBeDefined();
-        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
-
-        // The explicit target and the installed runner have to agree.
-        const project = readJson(tree, 'test-ui-lib/project.json');
-        expect(project.targets['test-storybook'].options.command).toContain(
-          'test-storybook -c'
-        );
-      });
-
-      it('should match the addon to the declared storybook version', async () => {
-        updateJson(tree, 'package.json', (json) => {
-          json.devDependencies['storybook'] = '10.0.0';
-          return json;
-        });
-
-        await configurationGenerator(tree, {
-          project: 'test-ui-lib',
-          uiFramework: '@storybook/react-vite',
-          addPlugin: true,
-        });
-
-        // The addon peers the exact storybook version.
-        const { devDependencies } = readJson(tree, 'package.json');
-        expect(devDependencies['@storybook/addon-vitest']).toBe('10.0.0');
       });
 
       it('should not install a runner when interactionTests is false', async () => {
@@ -506,20 +453,21 @@ describe('@nx/storybook:configuration', () => {
         });
 
         const { devDependencies } = readJson(tree, 'package.json');
-        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
         expect(devDependencies['@storybook/test-runner']).not.toBeDefined();
       });
 
-      it('should point an explicit target at the runner it installed', async () => {
+      it('should install the runner the explicit target invokes', async () => {
         await configurationGenerator(tree, {
           project: 'test-ui-lib',
           uiFramework: '@storybook/react-vite',
           addPlugin: false,
         });
 
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@storybook/test-runner']).toBeDefined();
         const project = readJson(tree, 'test-ui-lib/project.json');
-        expect(project.targets['test-storybook'].options.command).toBe(
-          'vitest run --project=storybook --passWithNoTests'
+        expect(project.targets['test-storybook'].options.command).toContain(
+          'test-storybook -c'
         );
       });
     });
@@ -1449,7 +1397,7 @@ describe('@nx/storybook:configuration', () => {
     });
 
     describe('story testing', () => {
-      it('should keep the test runner on storybook 9', async () => {
+      it('should install the test runner major that peers storybook 9', async () => {
         const tree = createTreeWithEmptyWorkspace({ layout: 'apps-libs' });
         await libraryGenerator(tree, {
           directory: 'test-ui-lib',
@@ -1471,7 +1419,6 @@ describe('@nx/storybook:configuration', () => {
 
         const { devDependencies } = readJson(tree, 'package.json');
         expect(devDependencies['@storybook/test-runner']).toBe('^0.23.0');
-        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
       });
     });
 

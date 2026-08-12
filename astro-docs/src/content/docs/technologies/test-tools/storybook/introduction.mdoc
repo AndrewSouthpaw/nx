@@ -191,7 +191,7 @@ or
 nx test-storybook project-name
 ```
 
-On the `@storybook/addon-vitest` setup, this command runs on its own. On the `@storybook/test-runner` setup used by Webpack-builder frameworks and Storybook 9 or older, the target tests a Storybook that is already serving, so start `nx storybook project-name` first or point the runner at a published URL. See [Setting up Storybook interaction tests](/docs/kb/storybook-interaction-tests) for how Nx picks between the two.
+This target runs `@storybook/test-runner` against a Storybook that is already serving, so start `nx storybook project-name` first or point the runner at a published URL. If you set up [`@storybook/addon-vitest`](https://storybook.js.org/docs/writing-tests/integrations/vitest-addon) yourself on a Vite-builder framework, the target runs your stories through Vitest instead and needs no serving Storybook. See [Setting up Storybook interaction tests](/docs/kb/storybook-interaction-tests) for both paths.
 
 ### Anatomy of the Storybook setup
 

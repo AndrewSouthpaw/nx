@@ -39,11 +39,8 @@ import {
   storybookMajorVersion,
 } from '../../utils/utilities';
 import {
-  addonVitestVersion,
   coreJsVersion,
-  minStorybookMajorForVitestAddon,
   nxVersion,
-  storybookMajorToInstall,
   tsLibVersion,
   tsNodeVersion,
   versions,
@@ -139,17 +136,6 @@ export async function configurationGeneratorInternal(
     !!viteConfigFilePath || schema.uiFramework?.endsWith('-vite');
   const usesReactNative = isUsingReactNative(schema.project);
 
-  // Keyed off the Storybook framework, not `usesVite`: a project can have a
-  // vite.config for its unit tests while Storybook still builds with webpack.
-  const storybookBuildsWithVite = !!schema.uiFramework?.endsWith('-vite');
-  const storyTestRunner: 'vitest' | 'test-runner' | 'none' =
-    !schema.interactionTests
-      ? 'none'
-      : storybookBuildsWithVite &&
-          storybookMajorToInstall(tree) >= minStorybookMajorForVitestAddon
-        ? 'vitest'
-        : 'test-runner';
-
   createProjectStorybookDir(
     tree,
     schema.project,
@@ -195,17 +181,13 @@ export async function configurationGeneratorInternal(
   if (!hasPlugin || schema.addExplicitTargets) {
     warnStorybookExecutorGenerating();
     if (schema.uiFramework === '@storybook/angular') {
-      addAngularStorybookTarget(
-        tree,
-        schema.project,
-        storyTestRunner !== 'none'
-      );
+      addAngularStorybookTarget(tree, schema.project, schema.interactionTests);
     } else {
       addStorybookTarget(
         tree,
         schema.project,
         schema.uiFramework,
-        storyTestRunner
+        schema.interactionTests
       );
     }
     if (schema.configureStaticServe) {
@@ -217,9 +199,7 @@ export async function configurationGeneratorInternal(
 
   // Without this the inferred `test-storybook` target never appears: the plugin
   // keys off the runner being installed, and nothing else installs one.
-  if (storyTestRunner === 'vitest') {
-    devDeps['@storybook/addon-vitest'] = addonVitestVersion(tree);
-  } else if (storyTestRunner === 'test-runner') {
+  if (schema.interactionTests) {
     devDeps['@storybook/test-runner'] = versions(tree).testRunnerVersion;
   }
 

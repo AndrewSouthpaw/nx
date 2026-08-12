@@ -24,24 +24,7 @@ When generating your Storybook configuration, answer `Yes` to the `Do you want t
 nx g @nx/storybook:configuration my-project --interactionTests=true
 ```
 
-For a Vite-powered framework on Storybook 10 or later, this sets up:
-
-- The [`@storybook/addon-vitest`](https://storybook.js.org/docs/writing-tests/integrations/vitest-addon) addon in your `.storybook/main.ts`
-- A `vitest.storybook.config.mts` at the project root
-- The `vitest`, `@vitest/browser` and `playwright` dependencies
-- A `test-storybook` target that runs your stories through Vitest
-
-The addon runs stories in a real browser, so Playwright needs its browser binaries:
-
-```shell
-npx playwright install chromium
-```
-
-The story run is kept in its own `vitest.storybook.config.mts` rather than added to your project's `vite.config` or `vitest.config`. That keeps it out of your regular `test` target, so unit tests and story tests stay separate tasks.
-
-For Webpack-builder frameworks and for Storybook 9 or earlier, Nx sets up [`@storybook/test-runner`](https://storybook.js.org/docs/writing-tests/integrations/test-runner) instead.
-
-Nx reads the Storybook framework, not your bundler, when choosing between the two. A project that uses Vite for its unit tests but builds Storybook with Webpack stays on the test runner.
+This installs [`@storybook/test-runner`](https://storybook.js.org/docs/writing-tests/integrations/test-runner) at a version that matches your Storybook major, and the `@nx/storybook/plugin` then infers a `test-storybook` target for the project.
 
 ### Writing interaction tests
 
@@ -84,18 +67,12 @@ export const Primary: Story = {
 ```
 
 {% aside type="note" %}
-Storybook 8 merged `@storybook/testing-library` and `@storybook/jest` into a single `storybook/test` entry point, and Storybook 9 folded `@storybook/addon-interactions` into the `storybook` package. Import `expect`, `userEvent` and `within` from `storybook/test`.
+Storybook 8 replaced `@storybook/testing-library` and `@storybook/jest` with a single `@storybook/test` package, and Storybook 9 moved that into the `storybook` package as the `storybook/test` entry point and folded in `@storybook/addon-interactions`. On Storybook 9 and later, import `expect`, `userEvent`, and `within` from `storybook/test`.
 {% /aside %}
 
 ### Running interaction tests
 
-Run your interaction tests with:
-
-```shell
-nx test-storybook my-project
-```
-
-On the Vitest addon setup, that command runs on its own. The test runner setup instead drives a Storybook that is already serving, so start one first:
+The test runner drives a Storybook that is already serving, so start one first:
 
 ```shell
 nx storybook my-project
@@ -103,6 +80,10 @@ nx test-storybook my-project
 ```
 
 You can also point the test runner at a published Storybook with `--url`.
+
+### Using the Vitest addon instead
+
+Storybook recommends [`@storybook/addon-vitest`](https://storybook.js.org/docs/writing-tests/integrations/vitest-addon) for Vite-powered frameworks. Nx does not configure it for you, but it does recognize it: set it up with `storybook add @storybook/addon-vitest`, which registers the addon, creates the `storybook` Vitest project, and installs the browser dependencies it needs. Once the addon is installed, `@nx/storybook/plugin` infers `test-storybook` as a Vitest run against that project rather than a test-runner command, for projects whose Storybook framework uses the Vite builder.
 
 ### Debugging interaction tests
 

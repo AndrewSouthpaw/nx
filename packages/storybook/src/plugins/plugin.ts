@@ -219,8 +219,11 @@ async function buildStorybookTargets(
     configFilePath
   );
 
-  // The Vitest addon supersedes the test runner, so it wins when both resolve.
-  if (hasVitestAddon) {
+  // The addon only supports the Vite-builder frameworks, and it is installed into
+  // the root package.json, so a bare resolve would also match webpack projects in
+  // the same workspace and take the runner away from them.
+  const buildsWithVite = !!storybookFramework?.endsWith('-vite');
+  if (buildsWithVite && hasVitestAddon) {
     targets[options.testStorybookTargetName] = vitestTestTarget(projectRoot);
   } else if (hasTestRunner) {
     targets[options.testStorybookTargetName] = testTarget(projectRoot);

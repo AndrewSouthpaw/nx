@@ -2,7 +2,13 @@ import { CreateNodesContext } from '@nx/devkit';
 import { TempFs } from '@nx/devkit/internal-testing-utils';
 import type { StorybookConfig } from 'storybook/internal/types';
 import { join } from 'node:path';
+import { rmSync } from 'node:fs';
 import { createNodesV2 } from './plugin';
+
+jest.mock('nx/src/utils/cache-directory', () => ({
+  ...jest.requireActual('nx/src/utils/cache-directory'),
+  workspaceDataDirectory: 'tmp/storybook-plugin-cache',
+}));
 
 describe('@nx/storybook/plugin', () => {
   let createNodesFunction = createNodesV2[1];
@@ -10,6 +16,7 @@ describe('@nx/storybook/plugin', () => {
   let tempFs: TempFs;
 
   beforeEach(async () => {
+    rmSync('tmp/storybook-plugin-cache', { recursive: true, force: true });
     tempFs = new TempFs('storybook-plugin');
     context = {
       nxJsonConfiguration: {
@@ -37,6 +44,20 @@ describe('@nx/storybook/plugin', () => {
     tempFs.createFileSync(
       'my-vitest-app/project.json',
       JSON.stringify({ name: 'my-vitest-app' })
+    );
+    tempFs.createFileSync(
+      'my-webpack-app/project.json',
+      JSON.stringify({ name: 'my-webpack-app' })
+    );
+    // Distinct root: targets are cached per project hash, and node_modules is not
+    // part of that hash, so reusing a root returns the previous case's answer.
+    tempFs.createFileSync(
+      'my-mixed-app/project.json',
+      JSON.stringify({ name: 'my-mixed-app' })
+    );
+    tempFs.createFileSync(
+      'my-mixed-lib/project.json',
+      JSON.stringify({ name: 'my-mixed-lib' })
     );
   });
 
@@ -393,6 +414,87 @@ describe('@nx/storybook/plugin', () => {
       }
     `);
   });
+
+  it('should infer the test runner target when only it is installed', async () => {
+    tempFs.createFileSync('my-webpack-app/.storybook/main.ts', '');
+    installPackage('my-webpack-app', '@storybook/test-runner');
+    mockStorybookMainConfig('my-webpack-app/.storybook/main.ts', {
+      stories: ['../src/app/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+      addons: [],
+      framework: { name: '@storybook/react-webpack5', options: {} },
+    });
+
+    const nodes = await createNodesFunction(
+      ['my-webpack-app/.storybook/main.ts'],
+      targetNames,
+      context
+    );
+
+    expect(
+      nodes[0][1].projects['my-webpack-app'].targets['test-storybook'].command
+    ).toBe('test-storybook');
+  });
+
+  it('should only give the vitest command to the vite framework when the addon is at the root', async () => {
+    // The addon lands in the root package.json, so it resolves for every project.
+    // Only the Vite-builder frameworks can actually run it.
+    installPackage('.', '@storybook/addon-vitest');
+    installPackage('.', '@storybook/test-runner');
+
+    tempFs.createFileSync('my-mixed-lib/.storybook/main.ts', '');
+    mockStorybookMainConfig('my-mixed-lib/.storybook/main.ts', {
+      stories: ['../src/lib/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+      addons: [],
+      framework: { name: '@storybook/react-vite', options: {} },
+    });
+    tempFs.createFileSync('my-mixed-app/.storybook/main.ts', '');
+    mockStorybookMainConfig('my-mixed-app/.storybook/main.ts', {
+      stories: ['../src/app/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+      addons: [],
+      framework: { name: '@storybook/react-webpack5', options: {} },
+    });
+
+    const [viteNodes, webpackNodes] = await Promise.all([
+      createNodesFunction(
+        ['my-mixed-lib/.storybook/main.ts'],
+        targetNames,
+        context
+      ),
+      createNodesFunction(
+        ['my-mixed-app/.storybook/main.ts'],
+        targetNames,
+        context
+      ),
+    ]);
+
+    // Guards the assertion below: without this the addon may simply not resolve,
+    // and the webpack expectation would hold for the wrong reason.
+    expect(
+      viteNodes[0][1].projects['my-mixed-lib'].targets['test-storybook'].command
+    ).toBe('vitest run --project=storybook --passWithNoTests');
+    expect(
+      webpackNodes[0][1].projects['my-mixed-app'].targets['test-storybook']
+        .command
+    ).toBe('test-storybook');
+  });
+
+  function installPackage(projectRoot: string, packageName: string) {
+    const base = projectRoot === '.' ? '' : `${projectRoot}/`;
+    tempFs.createFileSync(
+      `${base}node_modules/${packageName}/package.json`,
+      JSON.stringify({ name: packageName, main: 'index.js' })
+    );
+    tempFs.createFileSync(`${base}node_modules/${packageName}/index.js`, '');
+  }
+
+  const targetNames = {
+    buildStorybookTargetName: 'build-storybook',
+    staticStorybookTargetName: 'static-storybook',
+    serveStorybookTargetName: 'serve-storybook',
+    testStorybookTargetName: 'test-storybook',
+    buildDepsTargetName: 'build-deps',
+    watchDepsTargetName: 'watch-deps',
+  };
 
   function mockStorybookMainConfig(
     mainTsPath: string,

@@ -1,10 +1,8 @@
 import {
-  checkFilesDoNotExist,
   checkFilesExist,
   cleanupProject,
   killPorts,
   newProject,
-  readJson,
   reservePort,
   runCLI,
   runCommandUntil,
@@ -25,20 +23,6 @@ describe('Storybook executors for Angular', () => {
 
   afterAll(() => {
     cleanupProject();
-  });
-
-  it('should set up the test runner rather than the vitest addon', () => {
-    // Angular libraries carry a vite.config for their unit tests, but Storybook
-    // still builds them with webpack.
-    checkFilesDoNotExist(`${angularStorybookLib}/vitest.storybook.config.mts`);
-
-    const project = readJson(`${angularStorybookLib}/project.json`);
-    expect(project.targets['test-storybook'].options.command).toContain(
-      'test-storybook -c'
-    );
-    expect(
-      readJson('package.json').devDependencies['@storybook/test-runner']
-    ).toBeDefined();
   });
 
   describe('serve and build storybook', () => {

@@ -18,14 +18,6 @@ export const coreJsVersion = '^3.36.1';
 
 export const testRunnerVersion = '^0.24.0';
 
-// addon-vitest publishes no 8.x, and on 9 its vitest 4 support only landed in 9.1.20.
-export const minStorybookMajorForVitestAddon = 10;
-
-// addon-vitest peers the exact storybook version, so it tracks what the workspace declares.
-export function addonVitestVersion(tree: Tree): string {
-  return getInstalledStorybookVersion(tree) ?? storybookVersion;
-}
-
 type StorybookVersions = {
   storybookVersion: string;
   // Each test runner major only peers a narrow window of storybook majors.
@@ -52,11 +44,6 @@ export function versions(tree: Tree): StorybookVersions {
   return (
     versionMap[installedStorybookMajor as CompatVersions] ?? latestVersions
   );
-}
-
-/** The storybook major a generator should configure for: the installed one, or the one it installs. */
-export function storybookMajorToInstall(tree: Tree): number {
-  return storybookMajorVersion(tree) ?? major(coerce(storybookVersion));
 }
 
 export function storybookMajorVersion(tree?: Tree): number | undefined {

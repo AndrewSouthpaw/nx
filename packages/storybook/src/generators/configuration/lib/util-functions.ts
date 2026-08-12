@@ -40,7 +40,7 @@ export function addStorybookTarget(
   tree: Tree,
   projectName: string,
   uiFramework: UiFramework,
-  storyTestRunner: 'vitest' | 'test-runner' | 'none'
+  interactionTests: boolean
 ) {
   const projectConfig = readProjectConfiguration(tree, projectName);
   projectConfig.targets['storybook'] = {
@@ -70,15 +70,7 @@ export function addStorybookTarget(
     },
   };
 
-  if (storyTestRunner === 'vitest') {
-    projectConfig.targets['test-storybook'] = {
-      executor: 'nx:run-commands',
-      options: {
-        command: `vitest run --project=storybook --passWithNoTests`,
-        cwd: projectConfig.root,
-      },
-    };
-  } else if (storyTestRunner === 'test-runner') {
+  if (interactionTests === true) {
     projectConfig.targets['test-storybook'] = {
       executor: 'nx:run-commands',
       options: {
