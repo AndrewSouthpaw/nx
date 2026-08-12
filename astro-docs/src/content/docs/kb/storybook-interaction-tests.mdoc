@@ -27,7 +27,7 @@ nx g @nx/storybook:configuration my-project --interactionTests=true
 For a Vite-powered framework on Storybook 10 or later, this sets up:
 
 - The [`@storybook/addon-vitest`](https://storybook.js.org/docs/writing-tests/integrations/vitest-addon) addon in your `.storybook/main.ts`
-- A `vitest.storybook.config.mts` at the project root, along with `.storybook/vitest.setup.ts`
+- A `vitest.storybook.config.mts` at the project root
 - The `vitest`, `@vitest/browser` and `playwright` dependencies
 - A `test-storybook` target that runs your stories through Vitest
 
@@ -39,7 +39,9 @@ npx playwright install chromium
 
 The story run is kept in its own `vitest.storybook.config.mts` rather than added to your project's `vite.config` or `vitest.config`. That keeps it out of your regular `test` target, so unit tests and story tests stay separate tasks.
 
-For Webpack-based frameworks and for Storybook 9 or earlier, Nx sets up [`@storybook/test-runner`](https://storybook.js.org/docs/writing-tests/integrations/test-runner) instead. The `test-storybook` target then runs the test runner against a served Storybook.
+For Webpack-builder frameworks and for Storybook 9 or earlier, Nx sets up [`@storybook/test-runner`](https://storybook.js.org/docs/writing-tests/integrations/test-runner) instead.
+
+Nx reads the Storybook framework, not your bundler, when choosing between the two. A project that uses Vite for its unit tests but builds Storybook with Webpack stays on the test runner.
 
 ### Writing interaction tests
 
@@ -92,6 +94,15 @@ Run your interaction tests with:
 ```shell
 nx test-storybook my-project
 ```
+
+On the Vitest addon setup, that command runs on its own. The test runner setup instead drives a Storybook that is already serving, so start one first:
+
+```shell
+nx storybook my-project
+nx test-storybook my-project
+```
+
+You can also point the test runner at a published Storybook with `--url`.
 
 ### Debugging interaction tests
 

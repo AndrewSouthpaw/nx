@@ -460,22 +460,15 @@ describe('@nx/storybook:configuration', () => {
                 provider: playwright(),
                 instances: [{ browser: 'chromium' }],
               },
-              setupFiles: ['.storybook/vitest.setup.ts'],
             },
           });
           "
         `);
-        expect(tree.read('test-ui-lib/.storybook/vitest.setup.ts', 'utf-8'))
-          .toMatchInlineSnapshot(`
-          "import { beforeAll } from 'vitest';
-          import { setProjectAnnotations } from '@storybook/react-vite';
-          import * as projectAnnotations from './preview';
-
-          const project = setProjectAnnotations([projectAnnotations]);
-
-          beforeAll(project.beforeAll);
-          "
-        `);
+        // Storybook 10.3+ provisions preview annotations itself, and a setup file
+        // calling setProjectAnnotations would turn that off.
+        expect(tree.exists('test-ui-lib/.storybook/vitest.setup.ts')).toBe(
+          false
+        );
         expect(tree.read('test-ui-lib/.storybook/main.ts', 'utf-8')).toContain(
           `addons: ['@storybook/addon-vitest']`
         );
@@ -487,6 +480,75 @@ describe('@nx/storybook:configuration', () => {
         expect(devDependencies['vitest']).toBeDefined();
         expect(devDependencies['playwright']).toBeDefined();
         expect(devDependencies['@storybook/test-runner']).not.toBeDefined();
+      });
+
+      it('should keep the test runner when only the unit tests use vite', async () => {
+        // An Angular library on Angular 21+ has a vite.config for vitest-analog
+        // while Storybook still builds with webpack. Picking the runner off the
+        // bundler here would wire up an addon the framework can't load.
+        tree.write('test-ui-lib/vite.config.mts', 'export default {};');
+
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/angular',
+          addPlugin: false,
+          addExplicitTargets: true,
+        });
+
+        expect(tree.exists('test-ui-lib/vitest.storybook.config.mts')).toBe(
+          false
+        );
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@storybook/test-runner']).toBeDefined();
+        expect(devDependencies['@storybook/addon-vitest']).not.toBeDefined();
+
+        // The explicit target and the installed runner have to agree.
+        const project = readJson(tree, 'test-ui-lib/project.json');
+        expect(project.targets['test-storybook'].options.command).toContain(
+          'test-storybook -c'
+        );
+      });
+
+      it('should match the addon and browser packages to the declared versions', async () => {
+        updateJson(tree, 'package.json', (json) => {
+          json.devDependencies['storybook'] = '10.0.0';
+          json.devDependencies['vitest'] = '4.0.0';
+          return json;
+        });
+
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-vite',
+          addPlugin: true,
+        });
+
+        // `@storybook/addon-vitest` peers the exact storybook version, and
+        // `@vitest/browser*` peer the exact vitest version.
+        const { devDependencies } = readJson(tree, 'package.json');
+        expect(devDependencies['@storybook/addon-vitest']).toBe('10.0.0');
+        expect(devDependencies['vitest']).toBe('4.0.0');
+        expect(devDependencies['@vitest/browser']).toBe('4.0.0');
+        expect(devDependencies['@vitest/browser-playwright']).toBe('4.0.0');
+      });
+
+      it('should only write a setup file when storybook cannot provision annotations', async () => {
+        updateJson(tree, 'package.json', (json) => {
+          json.devDependencies['storybook'] = '10.0.0';
+          return json;
+        });
+
+        await configurationGenerator(tree, {
+          project: 'test-ui-lib',
+          uiFramework: '@storybook/react-vite',
+          addPlugin: true,
+        });
+
+        expect(tree.exists('test-ui-lib/.storybook/vitest.setup.ts')).toBe(
+          true
+        );
+        expect(
+          tree.read('test-ui-lib/vitest.storybook.config.mts', 'utf-8')
+        ).toContain('setupFiles');
       });
 
       it('should keep the playwright provider a string on vitest 3', async () => {
@@ -505,7 +567,7 @@ describe('@nx/storybook:configuration', () => {
           tree.read('test-ui-lib/vitest.storybook.config.mts', 'utf-8')
         ).toContain(`provider: 'playwright'`);
         const { devDependencies } = readJson(tree, 'package.json');
-        expect(devDependencies['@vitest/browser']).toBe('^3.0.0');
+        expect(devDependencies['@vitest/browser']).toBe('^3.2.0');
         expect(devDependencies['@vitest/browser-playwright']).not.toBeDefined();
       });
 

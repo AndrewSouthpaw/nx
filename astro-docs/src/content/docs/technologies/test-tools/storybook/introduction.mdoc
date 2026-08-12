@@ -179,7 +179,7 @@ nx build-storybook project-name
 
 ### Testing Storybook
 
-You can run all the interaction tests in your stories using this command:
+Run all the interaction tests in your stories using this command:
 
 ```shell
 nx run project-name:test-storybook
@@ -190,6 +190,8 @@ or
 ```shell
 nx test-storybook project-name
 ```
+
+On the `@storybook/addon-vitest` setup, this command runs on its own. On the `@storybook/test-runner` setup used by Webpack-builder frameworks and Storybook 9 or older, the target tests a Storybook that is already serving, so start `nx storybook project-name` first or point the runner at a published URL. See [Setting up Storybook interaction tests](/docs/kb/storybook-interaction-tests) for how Nx picks between the two.
 
 ### Anatomy of the Storybook setup
 

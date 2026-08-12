@@ -42,14 +42,14 @@ import {
 import {
   coreJsVersion,
   minStorybookMajorForVitestAddon,
+  needsProjectAnnotationsSetup,
   nxVersion,
   storybookMajorToInstall,
+  storyTestVitestDependencies,
   tsLibVersion,
   tsNodeVersion,
   versions,
-  vitestBrowserDependencies,
   vitestMajorToInstall,
-  vitestVersion,
 } from '../../utils/versions';
 import { ensureDependencies } from './lib/ensure-dependencies';
 import { editRootTsConfig } from './lib/edit-root-tsconfig';
@@ -143,12 +143,15 @@ export async function configurationGeneratorInternal(
   const usesReactNative = isUsingReactNative(schema.project);
 
   // Storybook 10 superseded `@storybook/test-runner` with `@storybook/addon-vitest`,
-  // which only supports the Vite-powered frameworks. Everything else stays on the
-  // test runner.
+  // which only supports the Vite-builder frameworks. This keys off the Storybook
+  // framework, not `usesVite`: a project can have a vite.config for its unit tests
+  // (Angular libraries do on Angular 21+) while Storybook still builds with webpack.
+  // The webpack-to-vite coercion above has already run, so the framework is final.
+  const storybookBuildsWithVite = !!schema.uiFramework?.endsWith('-vite');
   const storyTestRunner: 'vitest' | 'test-runner' | 'none' =
     !schema.interactionTests
       ? 'none'
-      : usesVite &&
+      : storybookBuildsWithVite &&
           storybookMajorToInstall(tree) >= minStorybookMajorForVitestAddon
         ? 'vitest'
         : 'test-runner';
@@ -188,7 +191,10 @@ export async function configurationGeneratorInternal(
       schema.project,
       schema.uiFramework,
       root,
-      vitestMajorToInstall(tree)
+      {
+        vitestMajor: vitestMajorToInstall(tree),
+        setProjectAnnotations: needsProjectAnnotationsSetup(tree),
+      }
     );
   }
 
@@ -231,12 +237,7 @@ export async function configurationGeneratorInternal(
   // Whichever runner was configured above has to be installed, or its target
   // runs a binary that isn't there.
   if (storyTestRunner === 'vitest') {
-    devDeps['@storybook/addon-vitest'] = getStorybookVersionToInstall(tree);
-    devDeps['vitest'] = vitestVersion;
-    Object.assign(
-      devDeps,
-      vitestBrowserDependencies(vitestMajorToInstall(tree))
-    );
+    Object.assign(devDeps, storyTestVitestDependencies(tree));
   } else if (storyTestRunner === 'test-runner') {
     devDeps['@storybook/test-runner'] = versions(tree).testRunnerVersion;
   }

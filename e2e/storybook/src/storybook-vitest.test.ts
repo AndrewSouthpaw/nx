@@ -28,10 +28,7 @@ describe('Storybook story testing with the Vitest addon', () => {
   });
 
   it('should generate the addon wiring and install its runner', () => {
-    checkFilesExist(
-      `${reactViteApp}/vitest.storybook.config.mts`,
-      `${reactViteApp}/.storybook/vitest.setup.ts`
-    );
+    checkFilesExist(`${reactViteApp}/vitest.storybook.config.mts`);
     expect(readFile(`${reactViteApp}/.storybook/main.ts`)).toContain(
       '@storybook/addon-vitest'
     );

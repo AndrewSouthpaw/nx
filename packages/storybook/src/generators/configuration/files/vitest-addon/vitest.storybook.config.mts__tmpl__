@@ -16,7 +16,7 @@ export default defineConfig({
       headless: true,
       provider: <% if (vitestMajor >= 4) { %>playwright()<% } else { %>'playwright'<% } %>,
       instances: [{ browser: 'chromium' }],
-    },
-    setupFiles: ['.storybook/vitest.setup.ts'],
+    },<% if (setProjectAnnotations) { %>
+    setupFiles: ['.storybook/vitest.setup.ts'],<% } %>
   },
 });

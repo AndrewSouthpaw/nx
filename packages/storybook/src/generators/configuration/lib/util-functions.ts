@@ -670,7 +670,7 @@ export function createStorybookVitestConfig(
   projectName: string,
   uiFramework: UiFramework,
   root: string,
-  vitestMajor: number
+  options: { vitestMajor: number; setProjectAnnotations: boolean }
 ) {
   if (tree.exists(join(root, storybookVitestConfigFileName))) {
     logger.warn(
@@ -683,8 +683,12 @@ export function createStorybookVitestConfig(
     tmpl: '',
     uiFramework,
     projectName,
-    vitestMajor,
+    ...options,
   });
+
+  if (!options.setProjectAnnotations) {
+    tree.delete(join(root, '.storybook/vitest.setup.ts'));
+  }
 }
 
 export function getTsConfigPath(
