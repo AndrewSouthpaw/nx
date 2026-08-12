@@ -34,6 +34,10 @@ describe('@nx/storybook/plugin', () => {
       'my-react-lib/project.json',
       JSON.stringify({ name: 'my-react-lib' })
     );
+    tempFs.createFileSync(
+      'my-vitest-app/project.json',
+      JSON.stringify({ name: 'my-vitest-app' })
+    );
   });
 
   afterEach(() => {
@@ -333,10 +337,22 @@ describe('@nx/storybook/plugin', () => {
     `);
   });
 
-  it('should infer test-storybook from a storybook vitest config', async () => {
-    tempFs.createFileSync('my-app/.storybook/main.ts', '');
-    tempFs.createFileSync('my-app/vitest.storybook.config.mts', '');
-    mockStorybookMainConfig('my-app/.storybook/main.ts', {
+  it('should infer test-storybook from an addon-vitest installed in the project', async () => {
+    tempFs.createFileSync('my-vitest-app/.storybook/main.ts', '');
+    // Declared in the project rather than hoisted to the workspace root.
+    tempFs.createFileSync(
+      'my-vitest-app/node_modules/@storybook/addon-vitest/package.json',
+      JSON.stringify({
+        name: '@storybook/addon-vitest',
+        version: '10.5.7',
+        main: 'index.js',
+      })
+    );
+    tempFs.createFileSync(
+      'my-vitest-app/node_modules/@storybook/addon-vitest/index.js',
+      ''
+    );
+    mockStorybookMainConfig('my-vitest-app/.storybook/main.ts', {
       stories: ['../src/app/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
       addons: ['@storybook/addon-vitest'],
       framework: {
@@ -346,7 +362,7 @@ describe('@nx/storybook/plugin', () => {
     });
 
     const nodes = await createNodesFunction(
-      ['my-app/.storybook/main.ts'],
+      ['my-vitest-app/.storybook/main.ts'],
       {
         buildStorybookTargetName: 'build-storybook',
         staticStorybookTargetName: 'static-storybook',
@@ -358,10 +374,10 @@ describe('@nx/storybook/plugin', () => {
       context
     );
 
-    expect(nodes[0][1].projects['my-app'].targets['test-storybook'])
+    expect(nodes[0][1].projects['my-vitest-app'].targets['test-storybook'])
       .toMatchInlineSnapshot(`
       {
-        "command": "vitest run --config=vitest.storybook.config.mts",
+        "command": "vitest run --project=storybook --passWithNoTests",
         "inputs": [
           {
             "externalDependencies": [
@@ -372,7 +388,7 @@ describe('@nx/storybook/plugin', () => {
           },
         ],
         "options": {
-          "cwd": "my-app",
+          "cwd": "my-vitest-app",
         },
       }
     `);

@@ -25,7 +25,6 @@ import { getLockFileName } from '@nx/js';
 import type { StorybookConfig } from 'storybook/internal/types';
 import { query } from '@phenomnomnominal/tsquery';
 import { addBuildAndWatchDepsTargets } from '@nx/js/internal';
-import { storybookVitestConfigFileName } from '../utils/story-testing';
 
 export interface StorybookPluginOptions {
   buildStorybookTargetName?: string;
@@ -192,13 +191,25 @@ async function buildStorybookTargets(
 
   const targets: Record<string, TargetConfiguration> = {};
 
+  const hasVitestAddon = isInstalled(
+    '@storybook/addon-vitest',
+    context.workspaceRoot,
+    projectRoot
+  );
+  const hasTestRunner = isInstalled(
+    '@storybook/test-runner',
+    context.workspaceRoot,
+    projectRoot
+  );
+
   targets[options.buildStorybookTargetName] = buildTarget(
     namedInputs,
     buildOutputs,
     projectRoot,
     frameworkIsAngular,
     projectName,
-    configFilePath
+    configFilePath,
+    hasTestRunner
   );
 
   targets[options.serveStorybookTargetName] = serveTarget(
@@ -208,14 +219,10 @@ async function buildStorybookTargets(
     configFilePath
   );
 
-  const storybookVitestConfig = join(
-    context.workspaceRoot,
-    projectRoot,
-    storybookVitestConfigFileName
-  );
-  if (existsSync(storybookVitestConfig)) {
+  // The Vitest addon supersedes the test runner, so it wins when both resolve.
+  if (hasVitestAddon) {
     targets[options.testStorybookTargetName] = vitestTestTarget(projectRoot);
-  } else if (isStorybookTestRunnerInstalled()) {
+  } else if (hasTestRunner) {
     targets[options.testStorybookTargetName] = testTarget(projectRoot);
   }
 
@@ -243,7 +250,8 @@ function buildTarget(
   projectRoot: string,
   frameworkIsAngular: boolean,
   projectName: string,
-  configFilePath: string
+  configFilePath: string,
+  hasTestRunner: boolean
 ) {
   let targetConfig: TargetConfiguration;
 
@@ -266,9 +274,7 @@ function buildTarget(
           externalDependencies: [
             'storybook',
             '@storybook/angular',
-            isStorybookTestRunnerInstalled()
-              ? '@storybook/test-runner'
-              : undefined,
+            hasTestRunner ? '@storybook/test-runner' : undefined,
           ].filter(Boolean),
         },
       ],
@@ -286,9 +292,7 @@ function buildTarget(
         {
           externalDependencies: [
             'storybook',
-            isStorybookTestRunnerInstalled()
-              ? '@storybook/test-runner'
-              : undefined,
+            hasTestRunner ? '@storybook/test-runner' : undefined,
           ].filter(Boolean),
         },
       ],
@@ -339,7 +343,9 @@ function testTarget(projectRoot: string) {
 
 function vitestTestTarget(projectRoot: string) {
   const targetConfig: TargetConfiguration = {
-    command: `vitest run --config=${storybookVitestConfigFileName}`,
+    // `--passWithNoTests` so the target is green before any stories exist. It does
+    // not mask a missing `storybook` project: that is a startup error either way.
+    command: `vitest run --project=storybook --passWithNoTests`,
     options: { cwd: projectRoot },
     inputs: [
       {
@@ -522,11 +528,19 @@ function buildProjectName(
   return name;
 }
 
-function isStorybookTestRunnerInstalled(): boolean {
+// Resolved from the project first so a runner declared in the project's own
+// package.json counts, not just one hoisted to the workspace root.
+function isInstalled(
+  packageName: string,
+  workspaceRoot: string,
+  projectRoot: string
+): boolean {
   try {
-    require.resolve('@storybook/test-runner');
+    require.resolve(packageName, {
+      paths: [join(workspaceRoot, projectRoot), workspaceRoot],
+    });
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }

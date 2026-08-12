@@ -26,7 +26,6 @@ import {
 import { StorybookConfigureSchema } from '../schema';
 import { UiFramework } from '../../../utils/models';
 import { nxVersion } from '../../../utils/versions';
-import { storybookVitestConfigFileName } from '../../../utils/story-testing';
 import { findEslintFile, useFlatConfig } from '@nx/eslint/internal';
 import { findTargetDefault, upsertTargetDefault } from '@nx/devkit/internal';
 import {
@@ -75,7 +74,7 @@ export function addStorybookTarget(
     projectConfig.targets['test-storybook'] = {
       executor: 'nx:run-commands',
       options: {
-        command: `vitest run --config=${storybookVitestConfigFileName}`,
+        command: `vitest run --project=storybook --passWithNoTests`,
         cwd: projectConfig.root,
       },
     };
@@ -581,7 +580,7 @@ export function createProjectStorybookDir(
   root: string,
   projectType: string,
   projectIsRootProjectInStandaloneWorkspace: boolean,
-  useVitestAddon: boolean,
+  interactionTests: boolean,
   mainDir?: string,
   isNextJs?: boolean,
   usesSwc?: boolean,
@@ -622,20 +621,13 @@ export function createProjectStorybookDir(
     `../files/v${storybookMajor}/project-files${tsConfiguration ? '-ts' : ''}`
   );
 
-  const addons = [
-    ...(uiFramework === '@storybook/react-webpack5'
-      ? ['@nx/react/plugins/storybook']
-      : []),
-    ...(useVitestAddon ? ['@storybook/addon-vitest'] : []),
-  ];
-
   generateFiles(tree, templatePath, root, {
     tmpl: '',
     uiFramework,
     offsetFromRoot: offsetFromRoot(root),
     projectDirectory,
     projectType,
-    addons,
+    interactionTests,
     mainDir,
     isNextJs:
       isNextJs &&
@@ -662,32 +654,6 @@ export function createProjectStorybookDir(
     // since Storybook is only taking into account .storybook/tsconfig.json
     // for Angular projects
     tree.delete(join(root, '.storybook/tsconfig.json'));
-  }
-}
-
-export function createStorybookVitestConfig(
-  tree: Tree,
-  projectName: string,
-  uiFramework: UiFramework,
-  root: string,
-  options: { vitestMajor: number; setProjectAnnotations: boolean }
-) {
-  if (tree.exists(join(root, storybookVitestConfigFileName))) {
-    logger.warn(
-      `${storybookVitestConfigFileName} already exists for ${projectName}!`
-    );
-    return;
-  }
-
-  generateFiles(tree, join(__dirname, '../files/vitest-addon'), root, {
-    tmpl: '',
-    uiFramework,
-    projectName,
-    ...options,
-  });
-
-  if (!options.setProjectAnnotations) {
-    tree.delete(join(root, '.storybook/vitest.setup.ts'));
   }
 }
 

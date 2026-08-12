@@ -107,7 +107,8 @@ The [`@nx/react:storybook-configuration` generator](/docs/technologies/react/gen
 // libs/feature/ui/src/lib/my-button/my-button.stories.tsx
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MyButton } from './my-button';
-import { expect, within } from 'storybook/test';
+import { within } from '@storybook/testing-library';
+import { expect } from '@storybook/jest';
 
 const meta = {
   component: MyButton,

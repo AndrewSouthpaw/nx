@@ -12,7 +12,7 @@ const config = {
     '../**/*.@(mdx|stories.@(js|jsx|ts|tsx))' <% } else { %>
     '../<%= projectDirectory %>/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'
   <% } %>],
-  addons: [<%- addons.map((addon) => "'" + addon + "'").join(', ') %>],
+  addons: [<% if(uiFramework === '@storybook/react-webpack5') { %>, '@nx/react/plugins/storybook' <% } %>],
   framework: {
     name: <% if(uiFramework !== '@storybook/angular') { %>getAbsolutePath(<% } %>'<%= uiFramework %>'<% if(uiFramework !== '@storybook/angular') { %>)<% } %>,
     options: {

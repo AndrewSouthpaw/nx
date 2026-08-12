@@ -20,7 +20,6 @@ import {
   addBuildStorybookToCacheableOperations,
   addStaticTarget,
   addStorybookTarget,
-  createStorybookVitestConfig,
   addStorybookToNamedInputs,
   addStorybookToTargetDefaults,
   configureTsProjectConfig,
@@ -40,16 +39,14 @@ import {
   storybookMajorVersion,
 } from '../../utils/utilities';
 import {
+  addonVitestVersion,
   coreJsVersion,
   minStorybookMajorForVitestAddon,
-  needsProjectAnnotationsSetup,
   nxVersion,
   storybookMajorToInstall,
-  storyTestVitestDependencies,
   tsLibVersion,
   tsNodeVersion,
   versions,
-  vitestMajorToInstall,
 } from '../../utils/versions';
 import { ensureDependencies } from './lib/ensure-dependencies';
 import { editRootTsConfig } from './lib/edit-root-tsconfig';
@@ -142,11 +139,8 @@ export async function configurationGeneratorInternal(
     !!viteConfigFilePath || schema.uiFramework?.endsWith('-vite');
   const usesReactNative = isUsingReactNative(schema.project);
 
-  // Storybook 10 superseded `@storybook/test-runner` with `@storybook/addon-vitest`,
-  // which only supports the Vite-builder frameworks. This keys off the Storybook
-  // framework, not `usesVite`: a project can have a vite.config for its unit tests
-  // (Angular libraries do on Angular 21+) while Storybook still builds with webpack.
-  // The webpack-to-vite coercion above has already run, so the framework is final.
+  // Keyed off the Storybook framework, not `usesVite`: a project can have a
+  // vite.config for its unit tests while Storybook still builds with webpack.
   const storybookBuildsWithVite = !!schema.uiFramework?.endsWith('-vite');
   const storyTestRunner: 'vitest' | 'test-runner' | 'none' =
     !schema.interactionTests
@@ -165,7 +159,7 @@ export async function configurationGeneratorInternal(
     root,
     projectType,
     projectIsRootProjectInStandaloneWorkspace(root),
-    storyTestRunner === 'vitest',
+    schema.interactionTests,
     mainDir,
     !!nextConfigFilePath,
     compiler === 'swc',
@@ -185,19 +179,6 @@ export async function configurationGeneratorInternal(
       mainDir
     );
   }
-  if (storyTestRunner === 'vitest') {
-    createStorybookVitestConfig(
-      tree,
-      schema.project,
-      schema.uiFramework,
-      root,
-      {
-        vitestMajor: vitestMajorToInstall(tree),
-        setProjectAnnotations: needsProjectAnnotationsSetup(tree),
-      }
-    );
-  }
-
   configureTsProjectConfig(tree, schema);
   editTsconfigBaseJson(tree);
   configureTsSolutionConfig(tree, schema);
@@ -234,10 +215,10 @@ export async function configurationGeneratorInternal(
     devDeps['storybook'] = getStorybookVersionToInstall(tree);
   }
 
-  // Whichever runner was configured above has to be installed, or its target
-  // runs a binary that isn't there.
+  // Without this the inferred `test-storybook` target never appears: the plugin
+  // keys off the runner being installed, and nothing else installs one.
   if (storyTestRunner === 'vitest') {
-    Object.assign(devDeps, storyTestVitestDependencies(tree));
+    devDeps['@storybook/addon-vitest'] = addonVitestVersion(tree);
   } else if (storyTestRunner === 'test-runner') {
     devDeps['@storybook/test-runner'] = versions(tree).testRunnerVersion;
   }
