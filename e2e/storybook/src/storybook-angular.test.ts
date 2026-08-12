@@ -29,8 +29,7 @@ describe('Storybook executors for Angular', () => {
 
   it('should set up the test runner rather than the vitest addon', () => {
     // Angular libraries carry a vite.config for their unit tests, but Storybook
-    // still builds them with webpack, so the addon does not apply. The generated
-    // target and the installed runner have to agree.
+    // still builds them with webpack.
     checkFilesDoNotExist(`${angularStorybookLib}/vitest.storybook.config.mts`);
 
     const project = readJson(`${angularStorybookLib}/project.json`);
